@@ -41,7 +41,6 @@ var _ appengine.Context = (*Context)(nil)
 // using urlfetch)
 var httpClient = &http.Client{}
 
-
 // Default API Version
 const DefaultAPIVersion = "go1"
 
@@ -188,21 +187,21 @@ func (c *Context) startChild() error {
 		return err
 	}
 
-    appYAMLBuf := new(bytes.Buffer)
-    appYAMLTempl.Execute(appYAMLBuf, struct {
-        AppId string
-        APIVersion string
-    }{
-        c.appid,
-        APIVersion,
-    })
+	appYAMLBuf := new(bytes.Buffer)
+	appYAMLTempl.Execute(appYAMLBuf, struct {
+		AppId      string
+		APIVersion string
+	}{
+		c.appid,
+		APIVersion,
+	})
 	err = ioutil.WriteFile(filepath.Join(c.appDir, "app.yaml"), appYAMLBuf.Bytes(), 0755)
 	if err != nil {
 		return err
 	}
 
-    helperBuf := new(bytes.Buffer)
-    helperTempl.Execute(helperBuf, nil)
+	helperBuf := new(bytes.Buffer)
+	helperTempl.Execute(helperBuf, nil)
 	err = ioutil.WriteFile(filepath.Join(c.appDir, "helper", "helper.go"), helperBuf.Bytes(), 0644)
 	if err != nil {
 		return err
@@ -265,7 +264,7 @@ func (c *Context) startChild() error {
 	case <-donec:
 	}
 
-    return nil
+	return nil
 }
 
 // NewContext returns a new AppEngine context with an empty datastore, etc.
