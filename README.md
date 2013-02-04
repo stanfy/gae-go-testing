@@ -1,5 +1,5 @@
-gae-go-testing
-==============
+appenginetesting
+===============
 
 Testing library for Go App Engine, giving you an appengine.Context fake that forwards to a dev_appserver.py child process.
 This library is fixed for go1 based on http://code.google.com/p/gae-go-testing/ .
@@ -9,7 +9,7 @@ This library works on GAE/G 1.7.0 or higher and go1 and tested on:
     * GAE/G 1.7.1, go 1.0.3
 
 Installation
------
+------------
 
 Set environment variables :
 
