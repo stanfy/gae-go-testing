@@ -73,6 +73,23 @@ func (c *Context) Warningf(format string, args ...interface{})  { c.logf("WARNIN
 func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR", format, args...) }
 func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
 
+func (c *Context) Login(email string, admin bool) {
+	c.req.Header.Add("X-AppEngine-Inbound-User-Email", email)
+	c.req.Header.Add("X-AppEngine-Inbound-User-Id", "100")
+	if admin {
+		c.req.Header.Add("X-AppEngine-Inbound-User-Is-Admin", "1")
+	} else {
+		c.req.Header.Add("X-AppEngine-Inbound-User-Is-Admin", "0")
+	}
+
+}
+
+func (c *Context) Logout() {
+	c.req.Header.Del("X-AppEngine-Inbound-User-Email")
+	c.req.Header.Del("X-AppEngine-Inbound-User-Id")
+	c.req.Header.Del("X-AppEngine-Inbound-User-Is-Admin")
+}
+
 func (c *Context) Call(service, method string, in, out proto.Message, opts *appengine_internal.CallOptions) error {
 	data, err := proto.Marshal(in)
 	if err != nil {
