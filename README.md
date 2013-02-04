@@ -5,28 +5,31 @@ Testing library for Go App Engine, giving you an appengine.Context fake that for
 This library is fixed for go1 based on http://code.google.com/p/gae-go-testing/ .
 This library works on GAE/G 1.7.0 or higher and go1 and tested on:
 
-    * GAE/G 1.7.0, go 1.0.2
-    * GAE/G 1.7.1, go 1.0.2
+    * GAE/G 1.7.0, go 1.0.3
+    * GAE/G 1.7.1, go 1.0.3
 
 Installation
 -----
 
 Set environment variables :
 
-    export APPENGINE_SDK=/usr/local/google_appengine
-    export PATH=$PATH:$APPENGINE_SDK
+    $ export APPENGINE_SDK=/path/to/google_appengine
+    $ export PATH=$PATH:$APPENGINE_SDK
 
 Before installing this library, you have to install [appengine SDK](https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go).
 And copy appengine, appengine_internal and goprotobuf as followings :
 
-    curl https://raw.github.com/tenntenn/gae-go-testing/master/setup.py | python
+    $ export APPENGINE_SDK=/path/to/google_appengine
+    $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine
+    $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine_internal
+
 
 This library can be installed as following :
 
-    $go get github.com/tenntenn/gae-go-testing
+    $ go get github.com/icub3d/appenginetesting
 
 
 Usage
 -----
 
-context_test.go and recorder_test.go show an example of usage.
+context\_test.go and recorder\_test.go show an example of usage.
