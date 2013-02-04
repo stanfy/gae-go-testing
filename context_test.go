@@ -5,7 +5,6 @@ import (
 
 	"appengine/datastore"
 	"appengine/memcache"
-
 )
 
 type Entity struct {

@@ -1,3 +1,5 @@
+// +build !appengine
+
 // Copyright 2011 Google Inc. All rights reserved.
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
@@ -212,6 +214,7 @@ func (c *Context) startChild() error {
 		devAppserver,
 		"--clear_datastore",
 		"--use_sqlite",
+		"--high_replication",
 		// --blobstore_path=... <tempdir>
 		// --datastore_path=DS_FILE
 		"--skip_sdk_update_check",

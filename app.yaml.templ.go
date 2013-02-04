@@ -1,7 +1,7 @@
 package appenginetesting
 
 import (
-    "text/template"
+	"text/template"
 )
 
 const appYAMLTemplString = `
