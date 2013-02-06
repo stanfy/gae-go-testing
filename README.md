@@ -35,7 +35,7 @@ Usage
 -----
 
 The
-(documentation)[http://godoc.org/github.com/icub3d/appenginetesting]
+[documentation](http://godoc.org/github.com/icub3d/appenginetesting)
 has some basic examples.  You can also find complete test examples
 within [gorca](https://github.com/icub3d/gorca)/(*_test.go). Finally,
 [context_test.go](https://github.com/icub3d/appenginetesting/blob/master/context_test.go)
