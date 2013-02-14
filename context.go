@@ -39,7 +39,7 @@ var _ appengine.Context = (*Context)(nil)
 // blacklisted in App Engine 1.6.1 due to people misusing it in blog
 // posts and such.  (but this is one of the rare valid uses of not
 // using urlfetch)
-var httpClient = &http.Client{}
+var httpClient = &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}}
 
 // Default API Version
 const DefaultAPIVersion = "go1"
@@ -90,7 +90,7 @@ func (c *Context) Logout() {
 	c.req.Header.Del("X-AppEngine-Inbound-User-Is-Admin")
 }
 
-func (c *Context) Call(service, method string, in, out proto.Message, opts *appengine_internal.CallOptions) error {
+func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
 	data, err := proto.Marshal(in)
 	if err != nil {
 		return err
