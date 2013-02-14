@@ -2,12 +2,14 @@ appenginetesting
 ===============
 
 Fork of [gae-go-testing](https://github.com/tenntenn/gae-go-testing) with a few minor changes:
+
 - renamed for nicer import syntax (that IDEA's Go Plugin won't highlight as an error)
 - added +build tags so that it compiles
 - simplified install instructions. 
 
-    * GAE/G 1.7.0, go 1.0.3
-    * GAE/G 1.7.1, go 1.0.3
+As of GAE 1.7.5, we now keep tags of the repository that are known to
+be compatible with each GAE release. If you are not using the latest
+GAE release, please use the associated tag.
 
 Installation
 ------------
@@ -25,6 +27,16 @@ And copy appengine, appengine_internal and goprotobuf as followings :
     $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine
     $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine_internal
 
+
+There is some incompatibility between 1.7.5 and go 1.0.3. You can fix
+this by commenting out the following line in the file
+*${APPENGINE\_SDK}/goroot/src/pkg/appengine\_internal/api_dev.go*:
+
+    func init() { os.DisableWritesForAppEngine = true }
+	
+It should be:
+
+	//func init() { os.DisableWritesForAppEngine = true }
 
 This library can be installed as following :
 
