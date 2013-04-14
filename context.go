@@ -44,6 +44,9 @@ var httpClient = &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEn
 // Default API Version
 const DefaultAPIVersion = "go1"
 
+// Dev app server script filename
+const AppServerFileName = "old_dev_appserver.py"
+
 // API version of golang.
 // It is used for app.yaml of dev_server setting.
 var APIVersion = DefaultAPIVersion
@@ -74,20 +77,22 @@ func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR"
 func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
 
 func (c *Context) Login(email string, admin bool) {
-	c.req.Header.Add("X-AppEngine-Inbound-User-Email", email)
-	c.req.Header.Add("X-AppEngine-Inbound-User-Id", "100")
+	c.req.Header.Add("X-AppEngine-Internal-User-Email", email)
+	c.req.Header.Add("X-AppEngine-Internal-User-Id", "100")
+	c.req.Header.Add("X-AppEngine-Internal-User-Federated-Identity", email)
 	if admin {
-		c.req.Header.Add("X-AppEngine-Inbound-User-Is-Admin", "1")
+		c.req.Header.Add("X-AppEngine-Internal-User-Is-Admin", "1")
 	} else {
-		c.req.Header.Add("X-AppEngine-Inbound-User-Is-Admin", "0")
+		c.req.Header.Add("X-AppEngine-Internal-User-Is-Admin", "0")
 	}
 
 }
 
 func (c *Context) Logout() {
-	c.req.Header.Del("X-AppEngine-Inbound-User-Email")
-	c.req.Header.Del("X-AppEngine-Inbound-User-Id")
-	c.req.Header.Del("X-AppEngine-Inbound-User-Is-Admin")
+	c.req.Header.Del("X-AppEngine-Internal-User-Email")
+	c.req.Header.Del("X-AppEngine-Internal-User-Id")
+	c.req.Header.Del("X-AppEngine-Internal-User-Is-Admin")
+	c.req.Header.Del("X-AppEngine-Internal-User-Federated-Identity")
 }
 
 func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
@@ -168,24 +173,24 @@ func fileExists(path string) bool {
 
 func findDevAppserver() (string, error) {
 	if e := os.Getenv("APPENGINE_SDK"); e != "" {
-		p := filepath.Join(e, "dev_appserver.py")
+		p := filepath.Join(e, AppServerFileName)
 		if fileExists(p) {
 			return p, nil
 		}
 		return "", fmt.Errorf("invalid APPENGINE_SDK environment variable; path %q doesn't exist", p)
 	}
 	try := []string{
-		filepath.Join(os.Getenv("HOME"), "sdk", "go_appengine", "dev_appserver.py"),
-		filepath.Join(os.Getenv("HOME"), "sdk", "google_appengine", "dev_appserver.py"),
-		filepath.Join(os.Getenv("HOME"), "google_appengine", "dev_appserver.py"),
-		filepath.Join(os.Getenv("HOME"), "go_appengine", "dev_appserver.py"),
+		filepath.Join(os.Getenv("HOME"), "sdk", "go_appengine", AppServerFileName),
+		filepath.Join(os.Getenv("HOME"), "sdk", "google_appengine", AppServerFileName),
+		filepath.Join(os.Getenv("HOME"), "google_appengine", AppServerFileName),
+		filepath.Join(os.Getenv("HOME"), "go_appengine", AppServerFileName),
 	}
 	for _, p := range try {
 		if fileExists(p) {
 			return p, nil
 		}
 	}
-	return exec.LookPath("dev_appserver.py")
+	return exec.LookPath(AppServerFileName)
 }
 
 func (c *Context) startChild() error {
@@ -225,7 +230,6 @@ func (c *Context) startChild() error {
 	}
 
 	devAppserver, err := findDevAppserver()
-
 	c.port = port
 	c.child = exec.Command(
 		devAppserver,
