@@ -45,7 +45,7 @@ var httpClient = &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEn
 const DefaultAPIVersion = "go1"
 
 // Dev app server script filename
-const AppServerFileName = "old_dev_appserver.py"
+const AppServerFileName = "dev_appserver.py"
 
 // API version of golang.
 // It is used for app.yaml of dev_server setting.
@@ -55,11 +55,12 @@ var APIVersion = DefaultAPIVersion
 // process as a child and proxying all Context calls to the child.
 // Use NewContext to create one.
 type Context struct {
-	appid  string
-	req    *http.Request
-	child  *exec.Cmd
-	port   int    // of child dev_appserver.py http server
-	appDir string // temp dir for application files
+	appid     string
+	req       *http.Request
+	child     *exec.Cmd
+	port      int    // of child dev_appserver.py http server
+	adminPort int    // of child administration dev_appserver.py http server
+	appDir    string // temp dir for application files
 }
 
 func (c *Context) AppID() string {
@@ -75,6 +76,16 @@ func (c *Context) Infof(format string, args ...interface{})     { c.logf("INFO",
 func (c *Context) Warningf(format string, args ...interface{})  { c.logf("WARNING", format, args...) }
 func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR", format, args...) }
 func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
+
+// Namespace support is not working
+func (c *Context) CurrentNamespace(namespace string) {
+	c.req.Header.Add("X-AppEngine-Current-Namespace", namespace)
+}
+
+// Namespace support is not working
+func (c *Context) DefaultNamespace(namespace string) {
+	c.req.Header.Add("X-AppEngine-Default-Namespace", namespace)
+}
 
 func (c *Context) Login(email string, admin bool) {
 	c.req.Header.Add("X-AppEngine-Internal-User-Email", email)
@@ -199,6 +210,10 @@ func (c *Context) startChild() error {
 	if err != nil {
 		return err
 	}
+	adminPort, err := findFreePort()
+	if err != nil {
+		return err
+	}
 
 	c.appDir, err = ioutil.TempDir("", "")
 	if err != nil {
@@ -228,18 +243,19 @@ func (c *Context) startChild() error {
 	if err != nil {
 		return err
 	}
-
 	devAppserver, err := findDevAppserver()
 	c.port = port
+	c.adminPort = adminPort
 	c.child = exec.Command(
 		devAppserver,
-		"--clear_datastore",
-		"--use_sqlite",
-		"--high_replication",
+		"--clear_datastore=yes",
+		//"--use_sqlite",
+		//"--high_replication",
 		// --blobstore_path=... <tempdir>
 		// --datastore_path=DS_FILE
-		"--skip_sdk_update_check",
+		"--skip_sdk_update_check=yes",
 		fmt.Sprintf("--port=%d", port),
+		fmt.Sprintf("--admin_port=%d", adminPort),
 		c.appDir,
 	)
 	stderr, err := c.child.StderrPipe()
@@ -255,6 +271,8 @@ func (c *Context) startChild() error {
 	r := bufio.NewReader(stderr)
 	donec := make(chan bool)
 	errc := make(chan error)
+	c.CurrentNamespace("current")
+	c.DefaultNamespace("default")
 	go func() {
 		done := false
 		for {
@@ -264,18 +282,17 @@ func (c *Context) startChild() error {
 				return
 			}
 			line := string(bs)
+			//// Uncomment for extra debugging, to see what the child is logging.
+			//log.Printf("child: %q", line)
 			if done {
-				// Uncomment for extra debugging, to see what the child is logging.
-				//log.Printf("child: %q", line)
 				continue
 			}
-			if strings.Contains(line, "Running application") {
+			if strings.Contains(line, "Starting admin server at") {
 				done = true
 				donec <- true
 			}
 		}
 	}()
-
 	select {
 	case err := <-errc:
 		return fmt.Errorf("error starting child process: %v", err)
