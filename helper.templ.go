@@ -72,6 +72,10 @@ func call(w http.ResponseWriter, r *http.Request) {
 	}
 	in := &fakeProto{body}
 	out := &fakeProto{}
+	// mzimmerman: the following is obviously not the way to support Namespaces, however I didn't know a way to fix it
+	if method == "GetNamespace" {
+		return
+	}
 	err = c.Call(service, method, in, out, nil)
 	log.Printf("API call %q.%q = %v", service, method, err)
 	if err != nil {
