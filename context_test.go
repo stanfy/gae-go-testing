@@ -55,10 +55,18 @@ func TestContext(t *testing.T) {
 	if u == nil {
 		t.Fatalf("User should be logged in!")
 	}
+	id1 := u.ID
 	c.Logout()
 	u = user.Current(c)
 	if u != nil {
 		t.Fatalf("User should not be not logged in!")
 	}
-
+	c.Login("differentuser@host.com", false)
+	u = user.Current(c)
+	if u == nil {
+		t.Fatalf("User should be logged in!")
+	}
+	if id1 == u.ID {
+		t.Fatalf("User IDs should be unique")
+	}
 }

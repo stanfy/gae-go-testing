@@ -12,8 +12,10 @@ package appenginetesting
 import (
 	"bufio"
 	"bytes"
+	"code.google.com/p/goprotobuf/proto"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io/ioutil"
 	"log"
 	"net"
@@ -21,11 +23,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
-
-	"code.google.com/p/goprotobuf/proto"
 
 	"appengine"
 	"appengine_internal"
@@ -89,7 +90,7 @@ func (c *Context) DefaultNamespace(namespace string) {
 
 func (c *Context) Login(email string, admin bool) {
 	c.req.Header.Add("X-AppEngine-Internal-User-Email", email)
-	c.req.Header.Add("X-AppEngine-Internal-User-Id", "100")
+	c.req.Header.Add("X-AppEngine-Internal-User-Id", strconv.Itoa(int(crc32.Checksum([]byte(email), crc32.IEEETable))))
 	c.req.Header.Add("X-AppEngine-Internal-User-Federated-Identity", email)
 	if admin {
 		c.req.Header.Add("X-AppEngine-Internal-User-Is-Admin", "1")
