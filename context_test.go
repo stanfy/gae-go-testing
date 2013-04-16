@@ -5,6 +5,7 @@ import (
 
 	"appengine/datastore"
 	"appengine/memcache"
+	"appengine/user"
 )
 
 type Entity struct {
@@ -45,4 +46,19 @@ func TestContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("datastore.Put: %v", err)
 	}
+	u := user.Current(c)
+	if u != nil {
+		t.Fatalf("User should not be not logged in!")
+	}
+	c.Login("user@host.com", false)
+	u = user.Current(c)
+	if u == nil {
+		t.Fatalf("User should be logged in!")
+	}
+	c.Logout()
+	u = user.Current(c)
+	if u != nil {
+		t.Fatalf("User should not be not logged in!")
+	}
+
 }
