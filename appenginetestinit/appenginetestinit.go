@@ -1,17 +1,17 @@
 package appenginetestinit
 
 import (
-	"os"
 	"code.google.com/p/goprotobuf/proto"
-	"log"
 	"encoding/base64"
-	"strings"
+	"log"
 	"net/http"
+	"os"
+	"strings"
 )
 
 var (
 	SavedHttpTransport = http.DefaultTransport
-	SavedHttpClient = http.DefaultClient
+	SavedHttpClient    = http.DefaultClient
 )
 
 // Call this function from your test package init() function
@@ -20,7 +20,7 @@ func Use() {
 }
 
 func init() {
-	if strings.LastIndex(os.Args[0], "test") != len(os.Args[0]) - len("test") {
+	if strings.LastIndex(os.Args[0], "test") != len(os.Args[0])-len("test") {
 		// not a test environment
 		SavedHttpTransport = nil
 		SavedHttpClient = nil
@@ -33,27 +33,33 @@ func init() {
 	dc := "/"
 	id := "uatoday-instance"
 	config := Config{
-		AppId: []byte("test"),
-		VersionId: []byte("test"),
+		AppId:           []byte("test"),
+		VersionId:       []byte("test"),
 		ApplicationRoot: []byte("."),
-		ApiPort: &port,
-		Datacenter: &dc,
-		InstanceId: &id,
+		ApiPort:         &port,
+		Datacenter:      &dc,
+		InstanceId:      &id,
 	}
 
 	bytes, err := proto.Marshal(&config)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	output := base64.StdEncoding.EncodeToString(bytes)
 
 	dir := os.TempDir()
 	fo, err := os.Create(dir + "/appcfg.proto")
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 
 	n := len(output)
 	log.Printf("Write %d bytes of config\n", n)
 	for n > 0 {
-		cnt, err := fo.Write([]byte(output[len(output) - n : len(output)]))
-		if err != nil { panic(err) }
+		cnt, err := fo.Write([]byte(output[len(output)-n : len(output)]))
+		if err != nil {
+			panic(err)
+		}
 		n -= cnt
 	}
 
@@ -62,5 +68,7 @@ func init() {
 	}
 
 	os.Stdin, err = os.Open(dir + "/appcfg.proto")
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 }

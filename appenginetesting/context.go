@@ -27,6 +27,8 @@ import (
 
 	"appengine"
 	"appengine_internal"
+	basepb "appengine_internal/base"
+	"appenginetestinit"
 )
 
 // Statically verify that Context implements appengine.Context.
@@ -38,7 +40,6 @@ var _ appengine.Context = (*Context)(nil)
 // posts and such.  (but this is one of the rare valid uses of not
 // using urlfetch)
 var httpClient = &http.Client{}
-
 
 // Default API Version
 const DefaultAPIVersion = "go1"
@@ -72,11 +73,26 @@ func (c *Context) Warningf(format string, args ...interface{})  { c.logf("WARNIN
 func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR", format, args...) }
 func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
 
-func (c *Context) Call(service, method string, in, out proto.Message, opts *appengine_internal.CallOptions) error {
+func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
+	if service == "__go__" {
+		if method == "GetNamespace" {
+			out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Current-Namespace"))
+			return nil
+		}
+		if method == "GetDefaultNamespace" {
+			out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Default-Namespace"))
+			return nil
+		}
+	}
+
+	fmt.Println(in)
+
 	data, err := proto.Marshal(in)
 	if err != nil {
 		return err
 	}
+	http.DefaultTransport = appenginetestinit.SavedHttpTransport
+	http.DefaultClient = appenginetestinit.SavedHttpClient
 	req, _ := http.NewRequest("POST",
 		fmt.Sprintf("http://127.0.0.1:%d/call?s=%s&m=%s", c.port, service, method),
 		bytes.NewBuffer(data))
@@ -92,7 +108,10 @@ func (c *Context) Call(service, method string, in, out proto.Message, opts *appe
 	if err != nil {
 		return err
 	}
-	return proto.Unmarshal(pbytes, out)
+
+	err = proto.Unmarshal(pbytes, out)
+	fmt.Println(out)
+	return err
 }
 
 func (c *Context) FullyQualifiedAppID() string {
@@ -176,8 +195,16 @@ func (c *Context) startChild() error {
 	if err != nil {
 		return err
 	}
+	adminPort, err := findFreePort()
+	if err != nil {
+		return err
+	}
 
 	c.appDir, err = ioutil.TempDir("", "")
+	if err != nil {
+		return err
+	}
+	storageDir, err := ioutil.TempDir("", "gae-storage")
 	if err != nil {
 		return err
 	}
@@ -186,21 +213,21 @@ func (c *Context) startChild() error {
 		return err
 	}
 
-    appYAMLBuf := new(bytes.Buffer)
-    appYAMLTempl.Execute(appYAMLBuf, struct {
-        AppId string
-        APIVersion string
-    }{
-        c.appid,
-        APIVersion,
-    })
+	appYAMLBuf := new(bytes.Buffer)
+	appYAMLTempl.Execute(appYAMLBuf, struct {
+		AppId      string
+		APIVersion string
+	}{
+		c.appid,
+		APIVersion,
+	})
 	err = ioutil.WriteFile(filepath.Join(c.appDir, "app.yaml"), appYAMLBuf.Bytes(), 0755)
 	if err != nil {
 		return err
 	}
 
-    helperBuf := new(bytes.Buffer)
-    helperTempl.Execute(helperBuf, nil)
+	helperBuf := new(bytes.Buffer)
+	helperTempl.Execute(helperBuf, nil)
 	err = ioutil.WriteFile(filepath.Join(c.appDir, "helper", "helper.go"), helperBuf.Bytes(), 0644)
 	if err != nil {
 		return err
@@ -211,14 +238,13 @@ func (c *Context) startChild() error {
 	c.port = port
 	c.child = exec.Command(
 		devAppserver,
-		"--clear_datastore",
-		"--high_replication",
-		// --blobstore_path=... <tempdir>
-		// --datastore_path=DS_FILE
-		"--skip_sdk_update_check",
+		"--clear_datastore=yes",
 		fmt.Sprintf("--port=%d", port),
+		fmt.Sprintf("--admin_port=%d", adminPort),
+		fmt.Sprintf("--storage_path=%s", storageDir),
 		c.appDir,
 	)
+	log.Println(c.child.Args)
 	stderr, err := c.child.StderrPipe()
 	if err != nil {
 		return err
@@ -241,12 +267,12 @@ func (c *Context) startChild() error {
 				return
 			}
 			line := string(bs)
+			log.Printf("child: %q", line)
 			if done {
 				// Uncomment for extra debugging, to see what the child is logging.
-				//log.Printf("child: %q", line)
 				continue
 			}
-			if strings.Contains(line, "Running application") {
+			if strings.Contains(line, "Starting admin server") {
 				done = true
 				donec <- true
 			}
@@ -264,7 +290,7 @@ func (c *Context) startChild() error {
 	case <-donec:
 	}
 
-    return nil
+	return nil
 }
 
 // NewContext returns a new AppEngine context with an empty datastore, etc.
@@ -278,5 +304,6 @@ func NewContext(opts *Options) (*Context, error) {
 	if err := c.startChild(); err != nil {
 		return nil, err
 	}
+	fmt.Println("Context created")
 	return c, nil
 }
