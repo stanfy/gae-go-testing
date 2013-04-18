@@ -3,7 +3,6 @@ package appenginetestinit
 import (
 	"code.google.com/p/goprotobuf/proto"
 	"encoding/base64"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -54,7 +53,6 @@ func init() {
 	}
 
 	n := len(output)
-	log.Printf("Write %d bytes of config\n", n)
 	for n > 0 {
 		cnt, err := fo.Write([]byte(output[len(output)-n : len(output)]))
 		if err != nil {
