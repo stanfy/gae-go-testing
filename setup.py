@@ -60,7 +60,7 @@ def main():
 
     # Install our packages
     for pkg in ["appenginetestinit", "appenginetesting"]:
-        cmd = "go get github.com/stanfy/gae-go-testing/{0}".format(pkg)
+        cmd = "{0}/bin/go get github.com/stanfy/gae-go-testing/{1}".format(os.environ.get("GOROOT"), pkg)
         print cmd
         os.system(cmd)
 
