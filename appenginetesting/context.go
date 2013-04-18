@@ -28,7 +28,7 @@ import (
 	"appengine"
 	"appengine_internal"
 	basepb "appengine_internal/base"
-	"appenginetestinit"
+	"github.com/stanfy/gae-go-testing/appenginetestinit"
 )
 
 // Statically verify that Context implements appengine.Context.
