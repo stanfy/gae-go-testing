@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # _*_ coding: utf-8 _*_
 
-# This script copy packages which is necessary for this library to go distribusion.
-# Please run this script before installation such as:
+# Run this script to prepare everything:
 #   curl https://raw.github.com/tenntenn/gae-go-testing/master/setup.py | python 
 
 import os
@@ -39,7 +38,7 @@ def main():
     for pkg in packages:
         dst = "{0}/src/pkg/{1}".format(os.environ.get("GOROOT"), pkg)
         if os.path.exists(dst):
-            print >>sys.stderr, "Error: {0} is already existing".format(dst)
+            print >>sys.stderr, "Error: {0} already exists".format(dst)
             return 
 
     # Copy appengine to go distribustion
@@ -48,6 +47,20 @@ def main():
         dst = "{0}/src/pkg/{1}".format(os.environ.get("GOROOT"), pkg)
         os.mkdir(dst)
         cmd = "cp -r {0} {1}".format(src, dst)
+        print cmd
+        os.system(cmd)
+
+    # Fix appengine internals
+    internalsFile = "{0}/src/pkg/appengine_internal/api_dev.go".format(os.environ.get("GOROOT"))
+    print "Fixing {0}...".format(internalsFile)
+    fixedFile = open(internalsFile + ".tmp", "w")
+    fixedFile.write(re.sub(r'(os\.DisableWritesForAppEngine.+?)\}', r'/* \1 */ }', open(internalsFile).read()))
+    fixedFile.close()
+    os.rename(internalsFile + ".tmp", internalsFile)
+
+    # Install our packages
+    for pkg in ["appenginetestinit", "appenginetesting"]:
+        cmd = "go get github.com/stanfy/gae-go-testing/{0}".format(pkg)
         print cmd
         os.system(cmd)
 
