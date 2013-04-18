@@ -48,6 +48,9 @@ const DefaultAPIVersion = "go1"
 // It is used for app.yaml of dev_server setting.
 var APIVersion = DefaultAPIVersion
 
+// Verbosity flag. Set it to true in order to make server output verbose.
+var Verbose = false
+
 // Context implements appengine.Context by running a dev_appserver.py
 // process as a child and proxying all Context calls to the child.
 // Use NewContext to create one.
@@ -85,7 +88,10 @@ func (c *Context) Call(service, method string, in, out appengine_internal.ProtoM
 		}
 	}
 
-	fmt.Println(in)
+	if Verbose {
+		fmt.Println("INPUT:")
+		fmt.Println(in)
+	}
 
 	data, err := proto.Marshal(in)
 	if err != nil {
@@ -110,7 +116,11 @@ func (c *Context) Call(service, method string, in, out appengine_internal.ProtoM
 	}
 
 	err = proto.Unmarshal(pbytes, out)
-	fmt.Println(out)
+	if Verbose {
+		fmt.Println("OUTPUT:")
+		fmt.Println(out)
+	}
+
 	return err
 }
 
@@ -244,7 +254,9 @@ func (c *Context) startChild() error {
 		fmt.Sprintf("--storage_path=%s", storageDir),
 		c.appDir,
 	)
-	log.Println(c.child.Args)
+	if Verbose {
+		log.Println(c.child.Args)
+	}
 	stderr, err := c.child.StderrPipe()
 	if err != nil {
 		return err
@@ -267,9 +279,8 @@ func (c *Context) startChild() error {
 				return
 			}
 			line := string(bs)
-			log.Printf("child: %q", line)
+			if Verbose { log.Printf("server: %q", line) }
 			if done {
-				// Uncomment for extra debugging, to see what the child is logging.
 				continue
 			}
 			if strings.Contains(line, "Starting admin server") {
