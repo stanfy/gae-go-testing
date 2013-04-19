@@ -45,8 +45,8 @@ def main():
     for pkg in packages:
         src = "{0}/goroot/src/pkg/{1}/*".format(os.environ.get("APPENGINE_SDK"), pkg)
         dst = "{0}/src/pkg/{1}".format(os.environ.get("GOROOT"), pkg)
-        os.mkdir(dst)
-        cmd = "cp --parents -r {0} {1}".format(src, dst)
+        os.makedirs(dst)
+        cmd = "cp -r {0} {1}".format(src, dst)
         print cmd
         os.system(cmd)
 
