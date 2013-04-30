@@ -48,6 +48,7 @@ You also need to change the top of func init():
 	instanceConfig.Datacenter = *c.Datacenter
 
 It should be something like, values don't really matter:
+
 	instanceConfig.AppID = "testapp"
 	instanceConfig.APIPort = 0
 	instanceConfig.VersionID = "1.7.7"
