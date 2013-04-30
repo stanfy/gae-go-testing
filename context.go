@@ -52,6 +52,17 @@ const AppServerFileName = "dev_appserver.py"
 // It is used for app.yaml of dev_server setting.
 var APIVersion = DefaultAPIVersion
 
+const appYAMLTemplString = `
+application: testapp 
+version: 1
+runtime: go
+api_version: go1
+
+handlers:
+- url: /.*
+  script: _go_app
+`
+
 // Context implements appengine.Context by running a dev_appserver.py
 // process as a child and proxying all Context calls to the child.
 // Use NewContext to create one.
@@ -224,16 +235,7 @@ func (c *Context) startChild() error {
 	if err != nil {
 		return err
 	}
-
-	appYAMLBuf := new(bytes.Buffer)
-	appYAMLTempl.Execute(appYAMLBuf, struct {
-		AppId      string
-		APIVersion string
-	}{
-		c.appid,
-		APIVersion,
-	})
-	err = ioutil.WriteFile(filepath.Join(c.appDir, "app.yaml"), appYAMLBuf.Bytes(), 0755)
+	err = ioutil.WriteFile(filepath.Join(c.appDir, "app.yaml"), []byte(appYAMLTemplString), 0755)
 	if err != nil {
 		return err
 	}
