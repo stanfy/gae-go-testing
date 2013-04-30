@@ -12,6 +12,50 @@ type Entity struct {
 	Foo, Bar string
 }
 
+func TestNamespace(t *testing.T) {
+	c, err := NewContext(nil)
+	if err != nil {
+		t.Fatalf("NewContext: %v", err)
+	}
+	defer c.Close()
+
+	c.CurrentNamespace("private")
+	it := &memcache.Item{
+		Key:   "foo",
+		Value: []byte("value"),
+	}
+	err = memcache.Set(c, it)
+	if err != nil {
+		t.Fatalf("Set err = %v", err)
+	}
+	it, err = memcache.Get(c, "foo")
+	if err != nil {
+		t.Fatalf("Get err = %v; want no error", err)
+	}
+	if string(it.Value) != "value" {
+		t.Fatalf("got Item.Value = %q; want %q", string(it.Value), "value")
+	}
+
+	// now use the default Namespace
+	c.CurrentNamespace("")
+	_, err = memcache.Get(c, "foo")
+	if err != memcache.ErrCacheMiss {
+		t.Fatalf("memcache had an entry")
+	}
+	err = memcache.Set(c, it)
+	if err != nil {
+		t.Fatalf("Set err = %v", err)
+	}
+	it, err = memcache.Get(c, "foo")
+	if err != nil {
+		t.Fatalf("Get err = %v; want no error", err)
+	}
+	if string(it.Value) != "value" {
+		t.Fatalf("got Item.Value = %q; want %q", string(it.Value), "value")
+	}
+
+}
+
 func TestContext(t *testing.T) {
 	c, err := NewContext(nil)
 	if err != nil {

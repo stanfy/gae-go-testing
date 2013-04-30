@@ -89,14 +89,12 @@ func (c *Context) Warningf(format string, args ...interface{})  { c.logf("WARNIN
 func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR", format, args...) }
 func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
 
-// Namespace support is not working
-func (c *Context) CurrentNamespace(namespace string) {
-	c.req.Header.Add("X-AppEngine-Current-Namespace", namespace)
+func (c *Context) GetCurrentNamespace() string {
+	return c.req.Header.Get("X-AppEngine-Current-Namespace")
 }
 
-// Namespace support is not working
-func (c *Context) DefaultNamespace(namespace string) {
-	c.req.Header.Add("X-AppEngine-Default-Namespace", namespace)
+func (c *Context) CurrentNamespace(namespace string) {
+	c.req.Header.Set("X-AppEngine-Current-Namespace", namespace)
 }
 
 func (c *Context) Login(email string, admin bool) {
@@ -108,7 +106,6 @@ func (c *Context) Login(email string, admin bool) {
 	} else {
 		c.req.Header.Add("X-AppEngine-Internal-User-Is-Admin", "0")
 	}
-
 }
 
 func (c *Context) Logout() {
@@ -119,6 +116,22 @@ func (c *Context) Logout() {
 }
 
 func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
+	//if service == "__go__" {
+	//	if method == "GetNamespace" {
+	//		out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Current-Namespace"))
+	//		return nil
+	//	}
+	//	if method == "GetDefaultNamespace" {
+	//		out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Default-Namespace"))
+	//		return nil
+	//	}
+	//}
+	cn := c.GetCurrentNamespace()
+	if cn != "" {
+		if mod, ok := appengine_internal.NamespaceMods[service]; ok {
+			mod(in, cn)
+		}
+	}
 	data, err := proto.Marshal(in)
 	if err != nil {
 		return err
@@ -274,8 +287,6 @@ func (c *Context) startChild() error {
 	r := bufio.NewReader(stderr)
 	donec := make(chan bool)
 	errc := make(chan error)
-	c.CurrentNamespace("current")
-	c.DefaultNamespace("default")
 	go func() {
 		done := false
 		for {
