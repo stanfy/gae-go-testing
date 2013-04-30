@@ -28,7 +28,7 @@ And copy appengine, appengine_internal and goprotobuf as followings :
     $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine_internal
 
 
-There is some incompatibility between 1.7.5 and go 1.0.3. You can fix
+There is some incompatibility between 1.7.7 and go 1.0.3. You can fix
 this by commenting out the following line in the file
 *${APPENGINE\_SDK}/goroot/src/pkg/appengine\_internal/api_dev.go*:
 
@@ -37,6 +37,22 @@ this by commenting out the following line in the file
 It should be:
 
 	//func init() { os.DisableWritesForAppEngine = true }
+
+You also need to change the top of func init():
+
+	c := readConfig(os.Stdin)
+	instanceConfig.AppID = string(c.AppId)
+	instanceConfig.APIPort = int(*c.ApiPort)
+	instanceConfig.VersionID = string(c.VersionId)
+	instanceConfig.InstanceID = *c.InstanceId
+	instanceConfig.Datacenter = *c.Datacenter
+
+It should be something like, values don't really matter:
+	instanceConfig.AppID = "testapp"
+	instanceConfig.APIPort = 0
+	instanceConfig.VersionID = "1.7.7"
+	instanceConfig.InstanceID = "instanceid"
+	instanceConfig.Datacenter = "instanceid"
 
 This library can be installed as following :
 
