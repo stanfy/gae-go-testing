@@ -30,6 +30,7 @@ import (
 
 	"appengine"
 	"appengine_internal"
+	basepb "appengine_internal/base"
 )
 
 // Statically verify that Context implements appengine.Context.
@@ -70,9 +71,11 @@ type Context struct {
 	appid     string
 	req       *http.Request
 	child     *exec.Cmd
-	port      int    // of child dev_appserver.py http server
-	adminPort int    // of child administration dev_appserver.py http server
-	appDir    string // temp dir for application files
+	port      int      // of child dev_appserver.py http server
+	adminPort int      // of child administration dev_appserver.py http server
+	appDir    string   // temp dir for application files
+	queues    []string // list of queues to support
+	debug     bool     // send the output of the child process to console
 }
 
 func (c *Context) AppID() string {
@@ -116,16 +119,16 @@ func (c *Context) Logout() {
 }
 
 func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
-	//if service == "__go__" {
-	//	if method == "GetNamespace" {
-	//		out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Current-Namespace"))
-	//		return nil
-	//	}
-	//	if method == "GetDefaultNamespace" {
-	//		out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Default-Namespace"))
-	//		return nil
-	//	}
-	//}
+	if service == "__go__" {
+		if method == "GetNamespace" {
+			out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Current-Namespace"))
+			return nil
+		}
+		if method == "GetDefaultNamespace" {
+			out.(*basepb.StringProto).Value = proto.String(c.req.Header.Get("X-AppEngine-Default-Namespace"))
+			return nil
+		}
+	}
 	cn := c.GetCurrentNamespace()
 	if cn != "" {
 		if mod, ok := appengine_internal.NamespaceMods[service]; ok {
@@ -182,7 +185,9 @@ func (c *Context) Close() {
 // Options control optional behavior for NewContext.
 type Options struct {
 	// AppId to pretend to be. By default, "testapp"
-	AppId string
+	AppId      string
+	TaskQueues []string
+	Debug      bool
 }
 
 func (o *Options) appId() string {
@@ -190,6 +195,20 @@ func (o *Options) appId() string {
 		return "testapp"
 	}
 	return o.AppId
+}
+
+func (o *Options) taskQueues() []string {
+	if o == nil || len(o.TaskQueues) == 0 {
+		return []string{}
+	}
+	return o.TaskQueues
+}
+
+func (o *Options) debug() bool {
+	if o == nil {
+		return false
+	}
+	return o.Debug
 }
 
 func findFreePort() (int, error) {
@@ -244,6 +263,17 @@ func (c *Context) startChild() error {
 	if err != nil {
 		return err
 	}
+
+	if len(c.queues) > 0 {
+		queueBuf := new(bytes.Buffer)
+		queueTempl.Execute(queueBuf, c.queues)
+		err = ioutil.WriteFile(filepath.Join(c.appDir, "queue.yaml"), queueBuf.Bytes(), 0755)
+		if err != nil {
+			return err
+		}
+
+	}
+
 	err = os.Mkdir(filepath.Join(c.appDir, "helper"), 0755)
 	if err != nil {
 		return err
@@ -296,8 +326,10 @@ func (c *Context) startChild() error {
 				return
 			}
 			line := string(bs)
-			//// Uncomment for extra debugging, to see what the child is logging.
-			//log.Printf("child: %q", line)
+			if c.debug {
+				// set Debug = true in NewContext(Options)
+				log.Printf("child: %q", line)
+			}
 			if done {
 				continue
 			}
@@ -326,8 +358,10 @@ func (c *Context) startChild() error {
 func NewContext(opts *Options) (*Context, error) {
 	req, _ := http.NewRequest("GET", "/", nil)
 	c := &Context{
-		appid: opts.appId(),
-		req:   req,
+		appid:  opts.appId(),
+		req:    req,
+		queues: opts.taskQueues(),
+		debug:  opts.debug(),
 	}
 	if err := c.startChild(); err != nil {
 		return nil, err

@@ -5,11 +5,68 @@ import (
 
 	"appengine/datastore"
 	"appengine/memcache"
+	"appengine/taskqueue"
 	"appengine/user"
 )
 
 type Entity struct {
 	Foo, Bar string
+}
+
+func TestTasks(t *testing.T) {
+
+	c, err := NewContext(&Options{TaskQueues: []string{"testQueue"}})
+	if err != nil {
+		t.Fatalf("NewContext: %v", err)
+	}
+	defer c.Close()
+
+	task := taskqueue.NewPOSTTask("/post", map[string][]string{})
+	_, err = taskqueue.Add(c, task, "testQueue")
+	if err != nil {
+		t.Fatalf("Could not add task to queue")
+	}
+	stats, err := taskqueue.QueueStats(c, []string{"testQueue"}, 0) // fetch all of them
+	if err != nil {
+		t.Fatalf("Could not get taskqueue statistics")
+	}
+	t.Logf("TaskStatistics = %#v", stats)
+	if len(stats) == 0 {
+		t.Fatalf("Queue statistics are empty")
+	} else if stats[0].Tasks != 1 {
+		t.Fatalf("Could not find the task we just added")
+	}
+
+	err = taskqueue.Purge(c, "testQueue")
+	if err != nil {
+		t.Fatalf("Could not purge the queue")
+	}
+	stats, err = taskqueue.QueueStats(c, []string{"testQueue"}, 0) // fetch all of them
+	if len(stats) == 0 {
+		t.Fatalf("Queue statistics are empty")
+	}
+	if stats[0].Tasks != 0 {
+		t.Fatalf("Purge command not successful")
+	}
+
+	tasks := []*taskqueue.Task{
+		taskqueue.NewPOSTTask("/post1", map[string][]string{}),
+		taskqueue.NewPOSTTask("/post2", map[string][]string{}),
+	}
+	_, err = taskqueue.AddMulti(c, tasks, "testQueue")
+	if err != nil {
+		t.Fatalf("Could not add bulk tasklist to queue")
+	}
+	stats, err = taskqueue.QueueStats(c, []string{"testQueue"}, 0) // fetch all of them
+	if err != nil {
+		t.Fatalf("Could not get taskqueue statistics")
+	}
+	if len(stats) == 0 {
+		t.Fatalf("Could not find the tasks we just added")
+	} else if stats[0].Tasks != 2 {
+		t.Fatalf("Could not find the tasks we just added")
+	}
+
 }
 
 func TestNamespace(t *testing.T) {
