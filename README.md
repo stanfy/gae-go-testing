@@ -28,17 +28,8 @@ And copy appengine, appengine_internal and goprotobuf as followings :
     $ ln -s $APPENGINE_SDK/goroot/src/pkg/appengine_internal
 
 
-There is some incompatibility between 1.7.7 and go 1.0.3. You can fix
-this by commenting out the following line in the file
-*${APPENGINE\_SDK}/goroot/src/pkg/appengine\_internal/api_dev.go*:
-
-    func init() { os.DisableWritesForAppEngine = true }
-	
-It should be:
-
-	//func init() { os.DisableWritesForAppEngine = true }
-
-You also need to change the top of func init():
+There is some incompatibility when running the dev server like we do. You can fix
+this by changing the top of func init():
 
 	c := readConfig(os.Stdin)
 	instanceConfig.AppID = string(c.AppId)
@@ -54,6 +45,8 @@ It should be something like, values don't really matter:
 	instanceConfig.VersionID = "1.7.7"
 	instanceConfig.InstanceID = "instanceid"
 	instanceConfig.Datacenter = "instanceid"
+
+This change hasn't produced any noticable issues in running the dev server.
 
 This library can be installed as following :
 
