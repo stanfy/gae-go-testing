@@ -50,14 +50,6 @@ def main():
         print cmd
         os.system(cmd)
 
-    # Fix appengine internals
-    internalsFile = "{0}/src/pkg/appengine_internal/api_dev.go".format(os.environ.get("GOROOT"))
-    print "Fixing {0}...".format(internalsFile)
-    fixedFile = open(internalsFile + ".tmp", "w")
-    fixedFile.write(re.sub(r'(os\.DisableWritesForAppEngine.+?)\}', r'/* \1 */ }', open(internalsFile).read()))
-    fixedFile.close()
-    os.rename(internalsFile + ".tmp", internalsFile)
-
     # Install our packages
     for pkg in ["appenginetestinit", "appenginetesting"]:
         cmd = "{0}/bin/go get github.com/stanfy/gae-go-testing/{1}".format(os.environ.get("GOROOT"), pkg)

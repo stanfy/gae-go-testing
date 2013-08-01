@@ -26,26 +26,31 @@ func init() {
 		return
 	}
 
-	// push AppEngine Go Instance config to stdin
+	// Task: push AppEngine Go Instance config to stdin
 
+	// 1. create configuration instance
 	port := int32(8080)
 	dc := "/"
-	id := "uatoday-instance"
+	id := "test-instance"
+	authDomain := "test"
 	config := Config{
-		AppId:           []byte("test"),
+		AppId:           []byte("test-app"),
 		VersionId:       []byte("test"),
 		ApplicationRoot: []byte("."),
 		ApiPort:         &port,
 		Datacenter:      &dc,
 		InstanceId:      &id,
+		AuthDomain:      &authDomain,
 	}
 
+	// 2. serialize configuration
 	bytes, err := proto.Marshal(&config)
 	if err != nil {
 		panic(err)
 	}
 	output := base64.StdEncoding.EncodeToString(bytes)
 
+	// 3. write configuration to a file
 	dir := os.TempDir()
 	fo, err := os.Create(dir + "/appcfg.proto")
 	if err != nil {
@@ -65,6 +70,7 @@ func init() {
 		panic(err)
 	}
 
+	// 4. Point standard input to the configuration file
 	os.Stdin, err = os.Open(dir + "/appcfg.proto")
 	if err != nil {
 		panic(err)
