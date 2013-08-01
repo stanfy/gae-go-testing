@@ -29,6 +29,8 @@ import (
 	"appengine_internal"
 	basepb "appengine_internal/base"
 	"github.com/stanfy/gae-go-testing/appenginetestinit"
+
+	"runtime"
 )
 
 // Statically verify that Context implements appengine.Context.
@@ -40,6 +42,8 @@ var _ appengine.Context = (*Context)(nil)
 // posts and such.  (but this is one of the rare valid uses of not
 // using urlfetch)
 var httpClient = &http.Client{}
+
+var currentContext = (*Context)(nil)
 
 // Default API Version
 const DefaultAPIVersion = "go1"
@@ -55,11 +59,15 @@ var Verbose = false
 // process as a child and proxying all Context calls to the child.
 // Use NewContext to create one.
 type Context struct {
-	appid  string
-	req    *http.Request
-	child  *exec.Cmd
-	port   int    // of child dev_appserver.py http server
-	appDir string // temp dir for application files
+	appid      string
+	req        *http.Request
+	child      *exec.Cmd
+	port       int      // of child dev_appserver.py http server
+	adminPort  int      // of child administration dev_appserver.py http server
+	appDir     string   // temp dir for application files
+	queues     []string // list of queues to support
+	debug      string   // send the output of the application to console
+	debugChild bool     // send the output of the dev_appserver to console, for debugging appenginetesting
 }
 
 func (c *Context) AppID() string {
@@ -67,14 +75,29 @@ func (c *Context) AppID() string {
 }
 
 func (c *Context) logf(level, format string, args ...interface{}) {
-	log.Printf(level+": "+format, args...)
+	switch {
+	case c.debug == level:
+		fallthrough
+	case c.debug == "critical" && level == "error":
+		fallthrough
+	case c.debug == "warning" && (level == "critical" || level == "error"):
+		fallthrough
+	case c.debug == "info" && (level == "warning" || level == "critical" || level == "error"):
+		fallthrough
+	case c.debug == "debug" && (level == "info" || level == "warning" || level == "critical" || level == "error"):
+		fallthrough
+	case c.debug == "child":
+		log.Printf(strings.ToUpper(level)+": "+format, args...)
+		//default:
+		//	log.Printf("NOTLOGGED: "+level+": "+format, args...)
+	}
 }
 
-func (c *Context) Debugf(format string, args ...interface{})    { c.logf("DEBUG", format, args...) }
-func (c *Context) Infof(format string, args ...interface{})     { c.logf("INFO", format, args...) }
-func (c *Context) Warningf(format string, args ...interface{})  { c.logf("WARNING", format, args...) }
-func (c *Context) Errorf(format string, args ...interface{})    { c.logf("ERROR", format, args...) }
-func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("CRITICAL", format, args...) }
+func (c *Context) Debugf(format string, args ...interface{})    { c.logf("debug", format, args...) }
+func (c *Context) Infof(format string, args ...interface{})     { c.logf("info", format, args...) }
+func (c *Context) Warningf(format string, args ...interface{})  { c.logf("warning", format, args...) }
+func (c *Context) Criticalf(format string, args ...interface{}) { c.logf("critical", format, args...) }
+func (c *Context) Errorf(format string, args ...interface{})    { c.logf("error", format, args...) }
 
 func (c *Context) Call(service, method string, in, out appengine_internal.ProtoMessage, opts *appengine_internal.CallOptions) error {
 	if service == "__go__" {
@@ -139,7 +162,7 @@ func (c *Context) Request() interface{} {
 //
 // Close is not part of the appengine.Context interface.
 func (c *Context) Close() {
-	if c.child == nil {
+	if c == nil || c.child == nil {
 		return
 	}
 	if p := c.child.Process; p != nil {
@@ -147,12 +170,16 @@ func (c *Context) Close() {
 	}
 	os.RemoveAll(c.appDir)
 	c.child = nil
+	currentContext = nil
 }
 
 // Options control optional behavior for NewContext.
 type Options struct {
 	// AppId to pretend to be. By default, "testapp"
-	AppId string
+	AppId      string
+	TaskQueues []string
+	Debug      string
+	DebugChild bool
 }
 
 func (o *Options) appId() string {
@@ -160,6 +187,27 @@ func (o *Options) appId() string {
 		return "testapp"
 	}
 	return o.AppId
+}
+
+func (o *Options) taskQueues() []string {
+	if o == nil || len(o.TaskQueues) == 0 {
+		return []string{}
+	}
+	return o.TaskQueues
+}
+
+func (o *Options) debug() string {
+	if o == nil || o.Debug == "" {
+		return "error"
+	}
+	return o.Debug
+}
+
+func (o *Options) debugChild() bool {
+	if o == nil {
+		return false
+	}
+	return o.DebugChild
 }
 
 func findFreePort() (int, error) {
@@ -246,14 +294,45 @@ func (c *Context) startChild() error {
 	devAppserver, err := findDevAppserver()
 
 	c.port = port
-	c.child = exec.Command(
-		devAppserver,
-		"--clear_datastore=yes",
-		fmt.Sprintf("--port=%d", port),
-		fmt.Sprintf("--admin_port=%d", adminPort),
-		fmt.Sprintf("--storage_path=%s", storageDir),
-		c.appDir,
-	)
+	c.adminPort = adminPort
+
+	devServerLog := "info"
+	appLog := c.debug
+	if c.debug == "child" {
+		devServerLog = "debug"
+		appLog = "debug"
+	}
+
+	switch runtime.GOOS {
+
+	case "windows":
+		c.child = exec.Command(
+			"cmd",
+			"/C",
+			devAppserver,
+			"--clear_datastore=yes",
+			"--skip_sdk_update_check=yes",
+			fmt.Sprintf("--storage_path=%s", storageDir),
+			fmt.Sprintf("--port=%d", port),
+			fmt.Sprintf("--admin_port=%d", adminPort),
+			fmt.Sprintf("--log_level=%s", appLog),
+			fmt.Sprintf("--dev_appserver_log_level=%s", devServerLog),
+			c.appDir,
+		)
+	case "linux":
+	case "darwin":
+		c.child = exec.Command(
+			devAppserver,
+			"--clear_datastore=yes",
+			"--skip_sdk_update_check=yes",
+			fmt.Sprintf("--storage_path=%s", storageDir),
+			fmt.Sprintf("--port=%d", port),
+			fmt.Sprintf("--admin_port=%d", adminPort),
+			fmt.Sprintf("--log_level=%s", appLog),
+			fmt.Sprintf("--dev_appserver_log_level=%s", devServerLog),
+			c.appDir,
+		)
+	}
 	if Verbose {
 		log.Println(c.child.Args)
 	}
@@ -279,7 +358,7 @@ func (c *Context) startChild() error {
 				return
 			}
 			line := string(bs)
-			if Verbose { log.Printf("server: %q", line) }
+			c.logf("CHILD", "%q", line)
 			if done {
 				continue
 			}
@@ -309,12 +388,15 @@ func (c *Context) startChild() error {
 func NewContext(opts *Options) (*Context, error) {
 	req, _ := http.NewRequest("GET", "/", nil)
 	c := &Context{
-		appid: opts.appId(),
-		req:   req,
+		appid:      opts.appId(),
+		req:        req,
+		queues:     opts.taskQueues(),
+		debug:      opts.debug(),
+		debugChild: opts.debugChild(),
 	}
 	if err := c.startChild(); err != nil {
 		return nil, err
 	}
-	fmt.Println("Context created")
+	currentContext = c
 	return c, nil
 }
