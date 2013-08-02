@@ -303,6 +303,9 @@ func (c *Context) startChild() error {
 		appLog = "debug"
 	}
 
+	if Verbose {
+		log.Printf("OS: %s\n", runtime.GOOS)
+	}
 	switch runtime.GOOS {
 
 	case "windows":
@@ -319,8 +322,8 @@ func (c *Context) startChild() error {
 			fmt.Sprintf("--dev_appserver_log_level=%s", devServerLog),
 			c.appDir,
 		)
-	case "linux":
-	case "darwin":
+		
+	default:
 		c.child = exec.Command(
 			devAppserver,
 			"--clear_datastore=yes",
