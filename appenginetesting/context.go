@@ -322,7 +322,7 @@ func (c *Context) startChild() error {
 			fmt.Sprintf("--dev_appserver_log_level=%s", devServerLog),
 			c.appDir,
 		)
-		
+
 	default:
 		c.child = exec.Command(
 			devAppserver,
@@ -374,7 +374,7 @@ func (c *Context) startChild() error {
 
 	select {
 	case err := <-errc:
-		return fmt.Errorf("error starting child process: %v", err)
+		return fmt.Errorf("error reading child process output: %v", err)
 	case <-time.After(10e9):
 		if p := c.child.Process; p != nil {
 			p.Kill()
