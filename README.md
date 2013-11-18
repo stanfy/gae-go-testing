@@ -5,6 +5,7 @@ Testing library for Go App Engine, giving you an appengine.Context fake that for
 This library is based on https://github.com/tenntenn/gae-go-testing.
 This library works on GAE/G 1.8.2.
 
+**This package is no longer being maintained. The Go App Engine SDK now includes a testing package (appengine/aetest)
 
 Installation
 -----
